@@ -4,8 +4,8 @@ package logplex
 import (
 	"io"
 	"runtime"
-	"strconv"
 	"time"
+	"log"
 )
 
 type Msg struct {
@@ -24,7 +24,7 @@ func (m *Msg) Time() (time.Time, error) {
 
 type BytesReader interface {
 	io.Reader
-	ReadBytes(delim byte) (line []byte, err error)
+	ReadLine() (line []byte, isPrefix bool, err error)
 }
 
 // Reader reads syslog streams
@@ -56,24 +56,27 @@ func (r *Reader) ReadMsg() (m *Msg, err error) {
 }
 
 func (r *Reader) next() readBuf {
-	b, err := r.buf.ReadBytes(' ')
+	var rbuf []byte
+	buf, more, err := r.buf.ReadLine()
 	if err != nil {
-		panic(err)
+		log.Println(err)
+		return rbuf
 	}
-	b = b[:len(b)-1]
-
-	n, err := strconv.Atoi(string(b))
-	if err != nil {
-		panic(err)
+	rbuf = append(rbuf, buf...)
+	if more {
+		for {
+			tbuf, more, err := r.buf.ReadLine()
+			if err != nil {
+				log.Println(err)
+				break
+			}
+			rbuf = append(rbuf, tbuf...)
+			if !more {
+				break
+			}
+		}
 	}
-
-	buf := make(readBuf, n)
-	_, err = io.ReadFull(r.buf, buf)
-	if err != nil {
-		panic(err)
-	}
-
-	return buf
+	return rbuf
 }
 
 func errRecover(err *error) {
