@@ -5,7 +5,6 @@ import (
 	"io"
 	"runtime"
 	"time"
-	"log"
 )
 
 type Msg struct {
@@ -41,7 +40,8 @@ func NewReader(buf BytesReader) *Reader {
 func (r *Reader) ReadMsg() (m *Msg, err error) {
 	defer errRecover(&err)
 
-	b := r.next()
+	b, e := r.next()
+	err = e
 
 	m = new(Msg)
 	m.Priority = b.priority()
@@ -55,28 +55,17 @@ func (r *Reader) ReadMsg() (m *Msg, err error) {
 	return
 }
 
-func (r *Reader) next() readBuf {
-	var rbuf []byte
-	buf, more, err := r.buf.ReadLine()
-	if err != nil {
-		log.Println(err)
-		return rbuf
+func (r *Reader) next() (readBuf, error) {
+	var err error
+	var line []byte
+	var ln []byte
+	isPrefix := true
+	err = nil
+	for isPrefix && err == nil {
+		line, isPrefix, err = r.buf.ReadLine()
+		ln = append(ln, line...)
 	}
-	rbuf = append(rbuf, buf...)
-	if more {
-		for {
-			tbuf, more, err := r.buf.ReadLine()
-			if err != nil {
-				log.Println(err)
-				break
-			}
-			rbuf = append(rbuf, tbuf...)
-			if !more {
-				break
-			}
-		}
-	}
-	return rbuf
+	return ln, err
 }
 
 func errRecover(err *error) {
