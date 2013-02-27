@@ -8,13 +8,14 @@ import (
 )
 
 type Msg struct {
-	Priority  int
-	Timestamp []byte
-	Host      []byte
-	User      []byte
-	Pid       []byte
-	Id        []byte
-	Msg       []byte
+	Priority     int
+	Timestamp    []byte
+	Host         []byte
+	User         []byte
+	Pid          []byte
+	Id           []byte
+	StructedData []byte
+	Msg          []byte
 }
 
 func (m *Msg) Time() (time.Time, error) {
@@ -23,7 +24,7 @@ func (m *Msg) Time() (time.Time, error) {
 
 type BytesReader interface {
 	io.Reader
-	ReadLine() (line []byte, isPrefix bool, err error)
+	ReadString(delim byte) (line string, err error)
 }
 
 // Reader reads syslog streams
@@ -41,8 +42,9 @@ func (r *Reader) ReadMsg() (m *Msg, err error) {
 	defer errRecover(&err)
 
 	b, e := r.next()
-	err = e
-
+	if e != nil {
+		return nil, e
+	}
 	m = new(Msg)
 	m.Priority = b.priority()
 	m.Timestamp = b.bytes()
@@ -50,22 +52,14 @@ func (r *Reader) ReadMsg() (m *Msg, err error) {
 	m.User = b.bytes()
 	m.Pid = b.bytes()
 	m.Id = b.bytes()
+	m.StructedData = b.bytes()
 	m.Msg = b
-
 	return
 }
 
 func (r *Reader) next() (readBuf, error) {
-	var err error
-	var line []byte
-	var ln []byte
-	isPrefix := true
-	err = nil
-	for isPrefix && err == nil {
-		line, isPrefix, err = r.buf.ReadLine()
-		ln = append(ln, line...)
-	}
-	return ln, err
+	ln, err := r.buf.ReadString('\n')
+	return []byte(ln), err
 }
 
 func errRecover(err *error) {
