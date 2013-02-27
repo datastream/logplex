@@ -1,18 +1,14 @@
 package logplex
 
 import (
-	"bytes"
+	"bufio"
 	"io"
+	"os"
 	"reflect"
 	"testing"
 )
 
 func TestParse(t *testing.T) {
-	data := `66 <174>1 2012-07-22T00:06:26-00:00 somehost Go console 2 Hi from Go
-67 <174>1 2012-07-22T00:06:26-00:00 somehost Go console 10 Hi from Go
-67 <174>1 2012-07-22T00:06:26-00:00 somehost Go console 10 Hi from Go
-`
-
 	exp := []*Msg{
 		{
 			174,
@@ -21,6 +17,7 @@ func TestParse(t *testing.T) {
 			[]byte("Go"),
 			[]byte("console"),
 			[]byte("2"),
+			[]byte("-"),
 			[]byte("Hi from Go\n"),
 		},
 		{
@@ -28,8 +25,9 @@ func TestParse(t *testing.T) {
 			[]byte("2012-07-22T00:06:26-00:00"),
 			[]byte("somehost"),
 			[]byte("Go"),
-			[]byte("console"),
+			[]byte(""),
 			[]byte("10"),
+			[]byte("-"),
 			[]byte("Hi from Go\n"),
 		},
 		{
@@ -37,14 +35,20 @@ func TestParse(t *testing.T) {
 			[]byte("2012-07-22T00:06:26-00:00"),
 			[]byte("somehost"),
 			[]byte("Go"),
-			[]byte("console"),
-			[]byte("10"),
+			[]byte(""),
+			[]byte("-"),
+			[]byte("-"),
 			[]byte("Hi from Go\n"),
 		},
 	}
 
-	b := bytes.NewBufferString(data)
-	r := NewReader(b)
+	f, err := os.Open("testcase.log")
+	if err != nil {
+		t.Errorf("error opening testcase.log %v", err)
+	}
+	defer f.Close()
+	rbuf := bufio.NewReader(f)
+	r := NewReader(rbuf)
 
 	for i, e := range exp {
 		t.Logf("EXP %d", i)
@@ -74,12 +78,6 @@ func TestParse(t *testing.T) {
 		}
 	}
 
-	_, err := r.ReadMsg()
-	if err != io.EOF {
-		t.Errorf("expected io.EOF, got %v", err)
-	}
-
-	// one more for good measure
 	_, err = r.ReadMsg()
 	if err != io.EOF {
 		t.Errorf("expected io.EOF, got %v", err)
