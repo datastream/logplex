@@ -11,7 +11,7 @@ type Msg struct {
 	Priority     int
 	Timestamp    []byte
 	Host         []byte
-	User         []byte
+	AppName      []byte
 	Pid          []byte
 	Id           []byte
 	StructedData []byte
@@ -49,7 +49,7 @@ func (r *Reader) ReadMsg() (m *Msg, err error) {
 	m.Priority = b.priority()
 	m.Timestamp = b.bytes()
 	m.Host = b.bytes()
-	m.User = b.bytes()
+	m.AppName = b.bytes()
 	m.Pid = b.bytes()
 	m.Id = b.bytes()
 	m.StructedData = b.bytes()
